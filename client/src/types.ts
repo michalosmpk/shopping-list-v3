@@ -9,6 +9,11 @@ export type ShoppingItem = {
   deleted: boolean;
   // 0 = clean, >0 = dirty (needs to be pushed to server).
   dirty: number;
+  // True only while a record exists locally but has never been
+  // confirmed by the server (e.g. created offline). Cleared after the
+  // first successful push or pull. Reorders / renames don't touch this.
+  // Drives the "not yet synced" opacity hint on rows.
+  localOnly?: boolean;
 };
 
 export type ShoppingList = {
@@ -18,6 +23,7 @@ export type ShoppingList = {
   updatedAt: number;
   deleted: boolean;
   dirty: number;
+  localOnly?: boolean;
 };
 
 export type SyncListPayload = {

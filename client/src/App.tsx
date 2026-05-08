@@ -3,7 +3,7 @@ import { SyncProvider } from "./sync/SyncProvider";
 import { LoginScreen } from "./components/LoginScreen";
 import { ListsScreen } from "./components/ListsScreen";
 import { ListScreen } from "./components/ListScreen";
-import { SyncBar } from "./components/SyncBar";
+import { ToastProvider } from "./components/Toast";
 import { matchRoute, useLocation } from "./router";
 
 function Routed() {
@@ -20,10 +20,11 @@ function Authenticated() {
   const { logout } = useAuth();
   return (
     <SyncProvider enabled onAuthError={logout}>
-      <div className="app">
-        <SyncBar />
-        <Routed />
-      </div>
+      <ToastProvider>
+        <div className="app">
+          <Routed />
+        </div>
+      </ToastProvider>
     </SyncProvider>
   );
 }

@@ -101,6 +101,7 @@ async function applyServerLists(serverLists: SyncListPayload[]): Promise<void> {
           updatedAt: sl.updatedAt,
           deleted: sl.deleted,
           dirty: 0,
+          localOnly: false,
         };
         await db.lists.put(newList);
       } else if (!localIsNewer) {
@@ -111,6 +112,7 @@ async function applyServerLists(serverLists: SyncListPayload[]): Promise<void> {
           updatedAt: sl.updatedAt,
           deleted: sl.deleted,
           dirty: 0,
+          localOnly: false,
         };
         await db.lists.put(merged);
       } else {
@@ -135,6 +137,7 @@ async function applyServerLists(serverLists: SyncListPayload[]): Promise<void> {
           updatedAt: si.updatedAt,
           deleted: si.deleted,
           dirty: 0,
+          localOnly: false,
         };
         await db.items.put(merged);
       }
@@ -147,12 +150,12 @@ async function clearDirtyForPushed(payload: SyncListPayload[]): Promise<void> {
     for (const p of payload) {
       const list = await db.lists.get(p.id);
       if (list && list.updatedAt === p.updatedAt) {
-        await db.lists.update(p.id, { dirty: 0 });
+        await db.lists.update(p.id, { dirty: 0, localOnly: false });
       }
       for (const it of p.items) {
         const local = await db.items.get(it.id);
         if (local && local.updatedAt === it.updatedAt) {
-          await db.items.update(it.id, { dirty: 0 });
+          await db.items.update(it.id, { dirty: 0, localOnly: false });
         }
       }
     }

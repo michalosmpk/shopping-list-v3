@@ -23,6 +23,7 @@ import {
   deleteItem,
   renameItem,
   reorderItems,
+  restoreItem,
   toggleItem,
 } from "../db/operations";
 import type { ShoppingItem } from "../types";
@@ -34,6 +35,8 @@ import {
   TrashIcon,
 } from "./Icons";
 import { Swipeable } from "./Swipeable";
+import { SyncChip } from "./SyncChip";
+import { useToast } from "./Toast";
 import { navigate } from "../router";
 import { useSync } from "../sync/SyncProvider";
 
@@ -94,6 +97,7 @@ export function ListScreen({ listId }: { listId: string }) {
             <ChevronLeft />
           </button>
           <h1 className="header__title">Loading…</h1>
+          <SyncChip />
         </header>
         <div className="empty">
           <p>This list isn't available yet.</p>
@@ -137,7 +141,7 @@ export function ListScreen({ listId }: { listId: string }) {
           <ChevronLeft />
         </button>
         <h1 className="header__title">{list.name}</h1>
-        {checkedCount > 0 ? (
+        {checkedCount > 0 && (
           <button
             type="button"
             className="iconbtn iconbtn--text"
@@ -145,9 +149,8 @@ export function ListScreen({ listId }: { listId: string }) {
           >
             Clear ✓ ({checkedCount})
           </button>
-        ) : (
-          <span className="iconbtn iconbtn--placeholder" aria-hidden />
         )}
+        <SyncChip />
       </header>
 
       <form className="addbar" onSubmit={handleAdd}>
@@ -204,11 +207,12 @@ function SortableItemRow({ item }: { item: ShoppingItem }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(item.name);
   const [qty, setQty] = useState(item.quantity);
+  const { toast } = useToast();
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: item.dirty > 0 ? 0.55 : isDragging ? 0.85 : 1,
+    opacity: item.localOnly ? 0.55 : isDragging ? 0.85 : 1,
   };
 
   async function commitEdit() {
@@ -225,9 +229,21 @@ function SortableItemRow({ item }: { item: ShoppingItem }) {
     }
   }
 
+  async function handleDelete() {
+    const id = item.id;
+    const label = item.name || "Item";
+    await deleteItem(id);
+    toast({
+      text: `Deleted "${label}"`,
+      actionLabel: "Undo",
+      duration: 7000,
+      onAction: () => restoreItem(id),
+    });
+  }
+
   return (
     <li ref={setNodeRef} style={style}>
-      <Swipeable onDelete={() => deleteItem(item.id)}>
+      <Swipeable onDelete={handleDelete}>
         <div className="row row--item">
           <button
             type="button"
@@ -293,7 +309,7 @@ function SortableItemRow({ item }: { item: ShoppingItem }) {
           <button
             type="button"
             className="row__icon"
-            onClick={() => deleteItem(item.id)}
+            onClick={handleDelete}
             aria-label={`Delete ${item.name}`}
             data-no-swipe
           >

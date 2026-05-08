@@ -26,6 +26,7 @@ import {
 import type { ShoppingList } from "../types";
 import { ChevronRight, DragIcon, PlusIcon, TrashIcon } from "./Icons";
 import { Swipeable } from "./Swipeable";
+import { SyncChip } from "./SyncChip";
 import { listPath, navigate } from "../router";
 
 export function ListsScreen() {
@@ -71,6 +72,7 @@ export function ListsScreen() {
     <div className="screen">
       <header className="header">
         <h1>Lists</h1>
+        <SyncChip />
       </header>
 
       <form className="addbar" onSubmit={handleAdd}>
@@ -132,7 +134,7 @@ function SortableListRow({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: list.dirty > 0 ? 0.55 : isDragging ? 0.85 : 1,
+    opacity: list.localOnly ? 0.55 : isDragging ? 0.85 : 1,
   };
 
   const itemCount = useLiveQuery(

@@ -13,10 +13,18 @@ body,
   margin: 0;
 }
 
+// Lock the document chrome itself so iOS Safari can't rubber-band the
+// whole page. Inner scroll containers (.rows) opt back in.
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 html {
   -webkit-tap-highlight-color: transparent;
-  // Solid dark fill so the safe-area / dynamic-island region and any
-  // rubber-band overscroll never expose the browser's default white.
+  // Solid dark fill so the safe-area / dynamic-island region never
+  // exposes the browser's default white.
   background: $bg-0;
 }
 
@@ -31,13 +39,14 @@ body {
     sans-serif;
   background: linear-gradient(180deg, $bg-0 0%, #07101f 100%);
   color: $fg-0;
-  overscroll-behavior-y: contain;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  // Make sure the gradient/dark background actually fills the safe-area
-  // insets too (the area iOS draws under the dynamic island).
-  min-height: 100dvh;
-  min-height: 100vh;
+  // Pin the body to the viewport. This is the only reliable way to stop
+  // iOS Safari from rubber-banding the page when a touch starts on a
+  // non-scrollable element (header, sync bar, etc).
+  position: fixed;
+  inset: 0;
+  width: 100%;
 }
 
 input,
@@ -68,16 +77,21 @@ button {
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  // Fix the app to the viewport so only inner regions can scroll. The
+  // dvh unit follows iOS Safari's collapsing chrome; vh is the fallback.
+  height: 100vh;
+  height: 100dvh;
   padding-top: $safe-top;
   padding-bottom: $safe-bottom;
+  overflow: hidden;
 }
 
 .screen {
   display: flex;
   flex-direction: column;
   flex: 1;
-  padding: 0 16px 24px;
+  min-height: 0; // allow inner scroll container to shrink in the flex parent
+  padding: 0 16px;
   max-width: 720px;
   margin: 0 auto;
   width: 100%;
@@ -87,16 +101,18 @@ button {
    Header
    ====================================================================== */
 .header {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 4px 16px;
+  gap: 8px;
+  padding: 10px 2px 12px;
 
   h1 {
     font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.02em;
     flex: 1;
+    min-width: 0;
     margin: 0;
   }
 
@@ -104,6 +120,7 @@ button {
     font-size: 20px;
     font-weight: 700;
     flex: 1;
+    min-width: 0;
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -141,30 +158,32 @@ button {
 }
 
 /* ======================================================================
-   Sync bar
+   Sync chip (lives in the screen header)
    ====================================================================== */
-.syncbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
+.syncchip {
+  flex: 0 0 auto;
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  margin: 0;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: saturate(140%) blur(8px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 13px;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   color: $fg-1;
-  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 36px;
+  transition: background 0.15s, transform 0.1s, border-color 0.15s;
 
-  &__left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
+  &:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+  &:active {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.85;
   }
 
   &__dot {
@@ -172,10 +191,11 @@ button {
     height: 8px;
     border-radius: 50%;
     background: $fg-3;
+    flex: 0 0 auto;
 
     &--ok {
       background: $ok;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
     }
     &--info {
       background: $info;
@@ -183,55 +203,39 @@ button {
     }
     &--warn {
       background: $warn;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16);
     }
     &--error {
       background: $danger;
+      box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.18);
     }
   }
 
   &__label {
-    font-weight: 600;
     color: $fg-0;
-  }
-
-  &__sub {
-    color: $fg-2;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1;
     white-space: nowrap;
   }
 
-  &__btn {
-    min-width: 36px;
-    min-height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    color: $fg-0;
-    background: $bg-2;
-    transition: background 0.15s, transform 0.1s;
-
-    &:hover {
-      background: $bg-3;
-    }
-    &:active {
-      transform: scale(0.96);
-    }
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+  &__icon {
+    color: $fg-2;
+    flex: 0 0 auto;
   }
 
-  &__error {
-    flex: 1 1 100%;
-    color: $danger-fg;
-    background: rgba(244, 63, 94, 0.12);
-    border-radius: $radius-sm;
-    padding: 6px 10px;
-    font-size: 12px;
-    margin-top: 4px;
+  // Tone tints for the whole chip — subtle background hint matching the dot.
+  &--ok {
+    border-color: rgba(34, 197, 94, 0.22);
+  }
+  &--warn {
+    border-color: rgba(245, 158, 11, 0.3);
+    color: $fg-0;
+  }
+  &--error {
+    border-color: rgba(244, 63, 94, 0.35);
+    background: rgba(244, 63, 94, 0.08);
+  }
+  &--info {
+    border-color: rgba(56, 189, 248, 0.28);
   }
 }
 
@@ -258,12 +262,14 @@ button {
    Add bar
    ====================================================================== */
 .addbar {
+  flex: 0 0 auto;
   display: flex;
   gap: 8px;
   margin: 4px 0 12px;
 
   input {
     flex: 1;
+    min-width: 0; // allow the flex item to shrink below its content
     min-height: $tap;
     padding: 0 14px;
     border-radius: $radius-md;
@@ -280,12 +286,14 @@ button {
     &::placeholder {
       color: $fg-3;
     }
-  }
 
-  &__qty {
-    flex: 0 0 56px;
-    padding: 0 6px;
-    text-align: center;
+    // Match the parent selector's specificity so this actually overrides
+    // `.addbar input { flex: 1 }` above.
+    &.addbar__qty {
+      flex: 0 0 56px;
+      padding: 0 6px;
+      text-align: center;
+    }
   }
 
   button {
@@ -318,7 +326,18 @@ button {
 .rows {
   list-style: none;
   margin: 0;
-  padding: 0;
+  // Make this the only scrollable region; everything above stays put.
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 0 24px;
+  // Small horizontal breathing room so swipe-to-delete shadows aren't
+  // clipped on the right edge.
+  margin: 0 -2px;
+  padding-left: 2px;
+  padding-right: 2px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -401,6 +420,7 @@ button {
 
   &__input {
     flex: 1;
+    min-width: 0;
     min-height: $tap;
     padding: 0 12px;
     border-radius: $radius-sm;
@@ -419,6 +439,7 @@ button {
 
   &__edit {
     flex: 1;
+    min-width: 0;
     display: flex;
     gap: 6px;
   }
@@ -605,6 +626,155 @@ button {
   position: relative;
   z-index: 1;
   will-change: transform;
+}
+
+/* ======================================================================
+   Toasts
+   ====================================================================== */
+.toasts {
+  // Approximate height of one toast (12px top + 12px bottom padding +
+  // 36px action button content). Used for the max-height cap below.
+  --toast-height: 60px;
+  --toast-gap: 8px;
+  --toast-visible: 4;
+
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 12px calc(12px + #{$safe-bottom});
+  display: flex;
+  flex-direction: column;
+  gap: var(--toast-gap);
+  align-items: stretch;
+  pointer-events: none; // page taps pass through when no toasts
+  z-index: 1000;
+
+  // Cap the visible stack at four toasts; the rest scrolls inside.
+  max-height: calc(
+    var(--toast-height) * var(--toast-visible) +
+      var(--toast-gap) * (var(--toast-visible) - 1) + 24px + #{$safe-bottom}
+  );
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+
+  // Soft fade at the top so older toasts hint at being scrollable.
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 16px,
+    #000 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 16px,
+    #000 100%
+  );
+}
+
+// Re-enable pointer events only when there are actually toasts, so the
+// invisible padding strip at the bottom doesn't block taps to the page.
+.toasts--active {
+  pointer-events: auto;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 16px;
+  border-radius: $radius-md;
+  background: $bg-3;
+  color: $fg-0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: $shadow-2;
+  font-size: 14px;
+  position: relative;
+  overflow: hidden;
+
+  // Slide+fade animation states.
+  transform: translateY(16px);
+  opacity: 0;
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease;
+
+  &--shown {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  &--exit {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+
+  &__text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__action {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    border-radius: $radius-sm;
+    background: transparent;
+    color: $accent;
+    font-weight: 700;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    min-height: 36px;
+
+    &:hover {
+      background: rgba(20, 184, 166, 0.12);
+    }
+    &:active {
+      transform: scale(0.97);
+    }
+  }
+
+  // Thin progress bar that drains over the toast's lifetime so the user
+  // sees how long they have left to undo.
+  &__progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    width: 100%;
+    background: $accent;
+    transform-origin: left center;
+    animation: toast-drain var(--toast-duration, 7000ms) linear forwards;
+  }
+
+  &--exit &__progress {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes toast-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (min-width: 720px) {
+  .toasts {
+    left: auto;
+    right: 24px;
+    max-width: 420px;
+    padding-bottom: calc(24px + #{$safe-bottom});
+  }
 }
 
 /* Slightly looser layout on tablet/desktop. Mobile remains the priority. */

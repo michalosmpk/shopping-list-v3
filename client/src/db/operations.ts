@@ -17,6 +17,7 @@ export async function createList(name: string): Promise<ShoppingList> {
     updatedAt: now(),
     deleted: false,
     dirty: 1,
+    localOnly: true,
   };
   await db.lists.add(list);
   return list;
@@ -77,6 +78,7 @@ export async function createItem(
     updatedAt: now(),
     deleted: false,
     dirty: 1,
+    localOnly: true,
   };
   await db.items.add(item);
   await db.lists.update(listId, { updatedAt: now(), dirty: 1 });
@@ -107,6 +109,17 @@ export async function renameItem(
 export async function deleteItem(id: string) {
   await db.items.update(id, {
     deleted: true,
+    updatedAt: now(),
+    dirty: 1,
+  });
+}
+
+export async function restoreItem(id: string) {
+  // Restore a soft-deleted item. Bumping `updatedAt` ensures the next
+  // sync pushes "deleted: false" with a higher timestamp than the prior
+  // delete, so the server's last-writer-wins picks the restore.
+  await db.items.update(id, {
+    deleted: false,
     updatedAt: now(),
     dirty: 1,
   });
