@@ -48,8 +48,7 @@ supabase start
 
 # 4. Copy the printed values into a fresh .env file.
 cp .env.example .env
-#    Fill in: SUPABASE_URL, SUPABASE_ANON_KEY,
-#             SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET.
+#    Fill in: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
 #    Set JWT_SECRET to any long random string.
 #    Set ADMIN_BOOTSTRAP_NAME / ADMIN_BOOTSTRAP_PASSWORD if you want the
 #    server to auto-create an initial admin on first run.
@@ -68,6 +67,108 @@ supabase stop                  # tear the stack down
 supabase db reset              # drop & re-apply migrations (DESTRUCTIVE)
 supabase studio                # opens http://localhost:54323
 ```
+
+## Deployment (single host)
+
+Drop the repo on a Linux box (or your Mac) with **Node 20+**, **npm**, and
+**Docker** running, then it's a one-liner:
+
+```bash
+git clone <repo> shopping-list-v3 && cd shopping-list-v3
+npm run prod                   # installs deps, boots Supabase, builds, starts BFF
+```
+
+That command is idempotent — re-run it after `git pull` and it'll rebuild and
+restart only what's needed. It does, in order:
+
+1. `npm install` (skipped if `node_modules/` already exists)
+2. `supabase start` (skipped if the stack is already up — Docker required)
+3. Pulls the API URL + anon/service-role keys from `supabase status` into `.env`
+4. Generates a real `JWT_SECRET` on first run if the placeholder is still set
+5. Builds the server (`tsc`) and the client (`vite build`)
+6. Starts the Express BFF in the background via `nohup`, writing the pid to
+   `logs/server.pid` and stdout/stderr to `logs/server.log`
+
+After it's up, the BFF serves the SPA itself on `PORT` (default `4000`):
+
+| URL                         | What                                                 |
+| --------------------------- | ---------------------------------------------------- |
+| `http://<host>:4000/`       | the SPA (login + lists)                              |
+| `http://<host>:4000/api/*`  | BFF endpoints (used by the SPA, no separate origin)  |
+| `http://<host>:54321`       | Supabase API (only the BFF talks to it directly)     |
+| `http://<host>:54323`       | Supabase Studio (DB GUI — bind to localhost only!)   |
+
+### Day-to-day commands
+
+```bash
+npm run prod          # start everything in the background
+npm run prod:stop     # stop the BFF (Supabase keeps running)
+npm run prod:restart  # stop + start (use after pulling new code)
+npm run prod:status   # show BFF + Supabase status
+npm run prod:logs     # tail -f logs/server.log
+npm run supabase:stop # stop Supabase too if you really want everything down
+```
+
+Settings worth tweaking in `.env` for production:
+
+- `PORT` — what port the BFF (and the SPA it serves) listens on.
+- `CLIENT_ORIGIN` — comma-separated list of allowed origins for CORS.
+  Defaults to `*` in prod since the SPA is same-origin; tighten this if you
+  put the API on a different host.
+- `ADMIN_REAUTH_TTL_SECONDS` — how long an admin's elevated session lasts
+  (default 300 = 5 min). Bump it if you're tired of re-typing the password.
+- Remove `ADMIN_BOOTSTRAP_NAME` / `ADMIN_BOOTSTRAP_PASSWORD` after the first
+  successful boot — they only kick in when no admin exists yet.
+
+### Putting it behind a reverse proxy
+
+The BFF is a plain HTTP server, so you can front it with nginx / Caddy /
+Traefik for TLS and let it forward to `127.0.0.1:4000`. Service workers (and
+therefore PWA install) require HTTPS or localhost, so a proxy with a real
+cert is the production-friendly path. Example nginx snippet:
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name shop.example.com;
+  ssl_certificate     /etc/letsencrypt/live/shop.example.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/shop.example.com/privkey.pem;
+
+  location / {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+### Auto-start on boot (optional, systemd)
+
+If you want the BFF to come back after a reboot, drop a unit file at
+`/etc/systemd/system/shopping-list.service`:
+
+```ini
+[Unit]
+Description=shopping-list-v3 BFF
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=simple
+User=youruser
+WorkingDirectory=/srv/shopping-list-v3
+ExecStartPre=/usr/bin/npx --no -- supabase start
+ExecStart=/usr/bin/node server/dist/index.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then `sudo systemctl enable --now shopping-list`. (Use this *instead of*
+`npm run prod` so you don't have two supervisors fighting over the port.)
 
 ## URLs
 

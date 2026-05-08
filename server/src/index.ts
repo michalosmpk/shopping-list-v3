@@ -4,6 +4,9 @@ import express, {
   type Response,
 } from "express";
 import cors from "cors";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { env } from "./env.js";
 import { authRouter } from "./routes/auth.js";
 import { syncRouter } from "./routes/sync.js";
@@ -41,6 +44,29 @@ async function main() {
   app.use("/api", (_req: Request, res: Response) => {
     res.status(404).json({ error: "not_found" });
   });
+
+  // In production we ship a single process: same Express server hands
+  // out the built Vite SPA so there's no separate static host to run.
+  // Locating client/dist relative to the compiled server file means this
+  // works whether the user runs `node server/dist/index.js` from the
+  // repo root or from server/.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const clientDistCandidates = [
+    resolve(here, "../../client/dist"),
+    resolve(here, "../../../client/dist"),
+  ];
+  const clientDist = clientDistCandidates.find((p) => existsSync(p));
+  if (clientDist) {
+    app.use(express.static(clientDist, { index: false, maxAge: "1h" }));
+    app.get(/^(?!\/api\/).*/, (_req: Request, res: Response) => {
+      res.sendFile(resolve(clientDist, "index.html"));
+    });
+    console.log(`[static] serving SPA from ${clientDist}`);
+  } else {
+    console.log(
+      "[static] no client/dist found — API-only mode (run `npm run build`)"
+    );
+  }
 
   const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     console.error(`[err] ${req.method} ${req.url}`, err);

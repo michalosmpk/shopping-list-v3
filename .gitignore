@@ -8,6 +8,7 @@ build
 .vite
 coverage
 data/
+logs/
 
 # Supabase local stack outputs (Docker volumes, generated types, dumps)
 supabase/.branches

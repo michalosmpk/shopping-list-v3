@@ -18,7 +18,13 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
-    "supabase:reset": "supabase db reset"
+    "supabase:reset": "supabase db reset",
+    "prod": "scripts/prod.sh start",
+    "prod:start": "scripts/prod.sh start",
+    "prod:stop": "scripts/prod.sh stop",
+    "prod:restart": "scripts/prod.sh restart",
+    "prod:status": "scripts/prod.sh status",
+    "prod:logs": "scripts/prod.sh logs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
