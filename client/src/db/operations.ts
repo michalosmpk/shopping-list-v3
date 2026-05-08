@@ -32,15 +32,24 @@ export async function renameList(id: string, name: string) {
 }
 
 export async function deleteList(id: string) {
+  // Owner-delete cascades item deletes through the sync queue so the
+  // server can mark them gone too. For a list the user only joined as
+  // a member, "delete" means "leave" — we hide it locally without
+  // pushing item-deletes that the server would reject (and that would
+  // re-queue forever after membership is revoked).
   await db.transaction("rw", db.lists, db.items, async () => {
     const ts = now();
+    const list = await db.lists.get(id);
+    // Treat lists without server-known ownership (i.e. local-only,
+    // never synced) as owned — the user just created them.
+    const isOwner = list?.isOwner !== false;
     await db.lists.update(id, { deleted: true, updatedAt: ts, dirty: 1 });
     const items = await db.items.where({ listId: id }).toArray();
     for (const it of items) {
       await db.items.update(it.id, {
         deleted: true,
         updatedAt: ts,
-        dirty: 1,
+        dirty: isOwner ? 1 : 0,
       });
     }
   });

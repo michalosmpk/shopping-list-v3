@@ -149,6 +149,11 @@ function SortableListRow({
     0
   );
 
+  // Lists without server-confirmed ownership (just-created, never
+  // synced) behave as owned. After the first sync round-trip the
+  // server is authoritative.
+  const isOwner = list.isOwner !== false;
+
   async function commitRename() {
     setEditing(false);
     if (name.trim() && name.trim() !== list.name) {
@@ -160,7 +165,10 @@ function SortableListRow({
 
   async function handleTrashClick(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete "${list.name}"?`)) return;
+    const prompt = isOwner
+      ? `Delete "${list.name}"?`
+      : `Leave "${list.name}"?`;
+    if (!confirm(prompt)) return;
     await deleteList(list.id);
   }
 
@@ -201,9 +209,15 @@ function SortableListRow({
               onClick={onOpen}
               onDoubleClick={() => setEditing(true)}
             >
-              <span className="row__title">{list.name}</span>
+              <span className="row__title">
+                {list.name}
+                {!isOwner && (
+                  <span className="badge badge--shared"> shared</span>
+                )}
+              </span>
               <span className="row__meta">
                 {itemCount} {itemCount === 1 ? "item" : "items"}
+                {!isOwner && list.ownerName && ` · by ${list.ownerName}`}
               </span>
             </button>
           )}
@@ -212,7 +226,7 @@ function SortableListRow({
             type="button"
             className="row__icon"
             onClick={handleTrashClick}
-            aria-label={`Delete ${list.name}`}
+            aria-label={isOwner ? `Delete ${list.name}` : `Leave ${list.name}`}
             data-no-swipe
           >
             <TrashIcon />

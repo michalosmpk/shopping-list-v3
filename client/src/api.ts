@@ -104,6 +104,14 @@ export type ShareInfo = {
   hasPassword: boolean;
 };
 
+export type ListMember = {
+  id: string;
+  name: string;
+  displayName: string;
+  isAdmin: boolean;
+  createdAt?: string;
+};
+
 export type GuestAuthResponse = {
   token: string;
   list_id: string;
@@ -212,6 +220,20 @@ export const api = {
     return request<ShareInfo>(`/share/${listId}`, {
       method: "PUT",
       body: JSON.stringify(input),
+    });
+  },
+  async listMembers(listId: string) {
+    return request<{ members: ListMember[] }>(`/share/${listId}/members`);
+  },
+  async addMember(listId: string, name: string) {
+    return request<{ member: ListMember }>(`/share/${listId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+  async removeMember(listId: string, userId: string) {
+    return request<{ ok: true }>(`/share/${listId}/members/${userId}`, {
+      method: "DELETE",
     });
   },
   async getShareInfo(token: string) {

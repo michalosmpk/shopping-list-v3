@@ -163,7 +163,7 @@ export function ListScreen({
             Clear ✓ ({checkedCount})
           </button>
         )}
-        {mode === "user" && (
+        {mode === "user" && list.isOwner !== false && (
           <button
             type="button"
             className="iconbtn"

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   applyClientChanges,
-  getListById,
+  getListByIdForGuest,
   getListsForUser,
   listServerVersion,
   userServerVersion,
@@ -33,11 +33,7 @@ syncRouter.get("/", async (req, res, next) => {
     const lists =
       session.kind === "user"
         ? await getListsForUser(session.userId)
-        : (() => {
-            // Wrap the maybe-null list in an array (or empty if missing).
-            return getListById(session.listId).then((l) => (l ? [l] : []));
-          })();
-    const resolved = await Promise.resolve(lists);
+        : await getListByIdForGuest(session.listId).then((l) => (l ? [l] : []));
     const version =
       session.kind === "user"
         ? await userServerVersion(session.userId)
@@ -45,7 +41,7 @@ syncRouter.get("/", async (req, res, next) => {
     res.json({
       serverTime: Date.now(),
       serverVersion: version,
-      lists: resolved,
+      lists,
     });
   } catch (err) {
     next(err);

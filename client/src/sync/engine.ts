@@ -102,6 +102,9 @@ async function applyServerLists(serverLists: SyncListPayload[]): Promise<void> {
           deleted: sl.deleted,
           dirty: 0,
           localOnly: false,
+          ownerId: sl.ownerId,
+          ownerName: sl.ownerName,
+          isOwner: sl.isOwner,
         };
         await db.lists.put(newList);
       } else if (!localIsNewer) {
@@ -113,10 +116,20 @@ async function applyServerLists(serverLists: SyncListPayload[]): Promise<void> {
           deleted: sl.deleted,
           dirty: 0,
           localOnly: false,
+          ownerId: sl.ownerId,
+          ownerName: sl.ownerName,
+          isOwner: sl.isOwner,
         };
         await db.lists.put(merged);
       } else {
-        // Local is newer & still dirty — keep, will be pushed next round.
+        // Local is newer & still dirty — keep, but refresh the
+        // audience metadata since the server is authoritative on
+        // ownership/membership.
+        await db.lists.update(existing.id, {
+          ownerId: sl.ownerId,
+          ownerName: sl.ownerName,
+          isOwner: sl.isOwner,
+        });
       }
 
       for (const si of sl.items ?? []) {

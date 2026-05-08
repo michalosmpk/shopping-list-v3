@@ -24,6 +24,13 @@ export type ShoppingList = {
   deleted: boolean;
   dirty: number;
   localOnly?: boolean;
+  // Audience metadata, populated by the server on every pull/push.
+  // For lists created locally that haven't synced yet these fields can
+  // be undefined; the UI treats `undefined` as "owned by me" so the
+  // creator keeps full control until the first push round-trips.
+  ownerId?: string;
+  ownerName?: string;
+  isOwner?: boolean;
 };
 
 export type SyncListPayload = {
@@ -32,6 +39,11 @@ export type SyncListPayload = {
   position: number;
   updatedAt: number;
   deleted: boolean;
+  // These three are server-populated and ignored on push (the server
+  // re-derives them per-recipient).
+  ownerId?: string;
+  ownerName?: string;
+  isOwner?: boolean;
   items: Array<{
     id: string;
     name: string;

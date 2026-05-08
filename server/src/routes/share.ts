@@ -1,10 +1,17 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "../auth.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { signGuestToken } from "../lib/jwt.js";
-import { getRawListById, getRawListByShareToken } from "../lib/repo.js";
+import {
+  addMembership,
+  getRawListById,
+  getRawListByShareToken,
+  listMembersWithProfiles,
+  removeMembership,
+} from "../lib/repo.js";
+import { getProfileByName } from "../lib/users.js";
 
 export const shareRouter = Router();
 
@@ -95,6 +102,108 @@ shareRouter.put("/:listId", requireAuth, async (req, res, next) => {
     next(err);
   }
 });
+
+// ---- Per-user membership management (owner only) -------------------
+
+// Reusable owner-or-admin guard. Resolves req.session, fetches the list,
+// and stashes both on req for the next handler.
+async function requireOwner(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  if (!req.session || req.session.kind !== "user") {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+  const list = await getRawListById(req.params.listId!);
+  if (!list || list.deleted) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (list.owner_id !== req.session.userId && !req.session.isAdmin) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  (req as Request & { ownedList?: typeof list }).ownedList = list;
+  next();
+}
+
+// GET /api/share/:listId/members — current members of the list.
+shareRouter.get(
+  "/:listId/members",
+  requireAuth,
+  requireOwner,
+  async (req, res, next) => {
+    try {
+      const rows = await listMembersWithProfiles(req.params.listId!);
+      res.json({
+        members: rows.map((m) => ({
+          id: m.user_id,
+          name: m.profiles.name,
+          displayName: m.profiles.display_name,
+          isAdmin: m.profiles.is_admin,
+          createdAt: m.created_at,
+        })),
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// POST /api/share/:listId/members  { name }
+//   Adds a real user (looked up by their login name) as a member.
+shareRouter.post(
+  "/:listId/members",
+  requireAuth,
+  requireOwner,
+  async (req, res, next) => {
+    try {
+      const { name } = req.body ?? {};
+      if (typeof name !== "string" || !name.trim()) {
+        res.status(400).json({ error: "invalid_payload" });
+        return;
+      }
+      const profile = await getProfileByName(name);
+      if (!profile) {
+        res.status(404).json({ error: "user_not_found" });
+        return;
+      }
+      const list = (req as Request & { ownedList?: { owner_id: string } }).ownedList!;
+      if (profile.user_id === list.owner_id) {
+        res.status(400).json({ error: "cannot_add_owner" });
+        return;
+      }
+      await addMembership(req.params.listId!, profile.user_id);
+      res.status(201).json({
+        member: {
+          id: profile.user_id,
+          name: profile.name,
+          displayName: profile.display_name,
+          isAdmin: profile.is_admin,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// DELETE /api/share/:listId/members/:userId
+shareRouter.delete(
+  "/:listId/members/:userId",
+  requireAuth,
+  requireOwner,
+  async (req, res, next) => {
+    try {
+      await removeMembership(req.params.listId!, req.params.userId!);
+      res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 // ---- Public guest endpoints (no auth required) ----------------------
 

@@ -1,11 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { api, type ShareInfo } from "../api";
+import { api, type ListMember, type ShareInfo } from "../api";
 import { shareUrl } from "../router";
+import { TrashIcon } from "./Icons";
 import { useToast } from "./Toast";
 
 // Owner-side share configuration. Lives inside ListScreen behind a
-// "Share" button. Lets the owner enable sharing, rotate the link's
-// token, set or clear a guest password, and copy the link.
+// "Share" button.
+//
+// Two independent ways to share:
+//   1. A public link (/share/<token>) gated by a guest password.
+//   2. By inviting another registered user by name — they see the list
+//      in their own overview and can edit but not delete or re-share.
 
 export function ShareConfigModal({
   listId,
@@ -17,9 +22,12 @@ export function ShareConfigModal({
   onClose: () => void;
 }) {
   const [info, setInfo] = useState<ShareInfo | null>(null);
+  const [members, setMembers] = useState<ListMember[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
+  const [memberName, setMemberName] = useState("");
+  const [memberError, setMemberError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -31,8 +39,12 @@ export function ShareConfigModal({
     setBusy(true);
     setError(null);
     try {
-      const cur = await api.getShare(listId);
+      const [cur, mems] = await Promise.all([
+        api.getShare(listId),
+        api.listMembers(listId),
+      ]);
       setInfo(cur);
+      setMembers(mems.members);
     } catch (err) {
       setError(
         err instanceof api.HttpError
@@ -102,6 +114,51 @@ export function ShareConfigModal({
     }
   }
 
+  async function addMember(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = memberName.trim();
+    if (!trimmed) return;
+    setMemberError(null);
+    setBusy(true);
+    try {
+      const res = await api.addMember(listId, trimmed);
+      setMembers((prev) => [...prev, res.member]);
+      setMemberName("");
+      toast({ text: `Shared with ${res.member.displayName}`, duration: 3000 });
+    } catch (err) {
+      if (err instanceof api.HttpError) {
+        if (err.status === 404) setMemberError("No user with that name.");
+        else if (err.detail === "cannot_add_owner") {
+          setMemberError("That's already your account.");
+        } else {
+          setMemberError(err.detail ?? `Error (${err.status})`);
+        }
+      } else {
+        setMemberError((err as Error).message ?? "Couldn't add user.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeMember(member: ListMember) {
+    if (!confirm(`Remove ${member.displayName} from this list?`)) return;
+    setBusy(true);
+    try {
+      await api.removeMember(listId, member.id);
+      setMembers((prev) => prev.filter((m) => m.id !== member.id));
+      toast({ text: `Removed ${member.displayName}.`, duration: 3000 });
+    } catch (err) {
+      const msg =
+        err instanceof api.HttpError
+          ? err.detail ?? `Error (${err.status})`
+          : (err as Error).message ?? "Couldn't remove user.";
+      toast({ text: msg, duration: 4000 });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div
       className="modal__backdrop"
@@ -114,107 +171,163 @@ export function ShareConfigModal({
     >
       <div className="modal modal--share">
         <h2>Share "{listName}"</h2>
-        <p className="modal__body">
-          Anyone with the link and password can edit this list.
-        </p>
 
-        {error && (
-          <p className="login__error" role="alert">{error}</p>
-        )}
+        {error && <p className="login__error" role="alert">{error}</p>}
 
-        {info?.enabled && info.token ? (
-          <>
-            <div className="share__urlrow">
+        {/* ---- Section 1: share with a known user --------------------- */}
+        <section className="share__section">
+          <h3 className="share__section-title">People with access</h3>
+          <ul className="share__members">
+            {members.map((m) => (
+              <li key={m.id} className="share__member">
+                <div className="share__member-id">
+                  <span className="share__member-name">{m.displayName}</span>
+                  <span className="share__member-handle">{m.name}</span>
+                </div>
+                <button
+                  type="button"
+                  className="row__icon"
+                  onClick={() => removeMember(m)}
+                  disabled={busy}
+                  aria-label={`Remove ${m.displayName}`}
+                >
+                  <TrashIcon />
+                </button>
+              </li>
+            ))}
+            {members.length === 0 && (
+              <li className="share__empty">No one else can see this yet.</li>
+            )}
+          </ul>
+          <form className="share__row" onSubmit={addMember}>
+            <input
+              type="text"
+              inputMode="text"
+              placeholder="user name"
+              value={memberName}
+              onChange={(e) => setMemberName(e.target.value)}
+              disabled={busy}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="btn"
+              disabled={busy || !memberName.trim()}
+            >
+              Add
+            </button>
+          </form>
+          {memberError && (
+            <p className="login__error" role="alert">{memberError}</p>
+          )}
+        </section>
+
+        {/* ---- Section 2: public guest link --------------------------- */}
+        <section className="share__section">
+          <h3 className="share__section-title">Public link</h3>
+          <p className="modal__body">
+            Anyone with the link and password can edit this list — no account
+            required.
+          </p>
+
+          {info?.enabled && info.token ? (
+            <>
+              <div className="share__urlrow">
+                <input
+                  readOnly
+                  value={shareUrl(info.token)}
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={copyLink}
+                  disabled={busy}
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="share__row">
+                <span>Password</span>
+                <span className="share__hint">
+                  {info.hasPassword ? "set" : "not set"}
+                </span>
+              </div>
+              <form onSubmit={setNewPassword} className="share__row">
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Change password…"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={busy}
+                />
+                <button
+                  type="submit"
+                  className="btn"
+                  disabled={busy || !password}
+                >
+                  Update
+                </button>
+              </form>
+              <div className="modal__actions">
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  onClick={rotate}
+                  disabled={busy}
+                >
+                  New link
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--danger"
+                  onClick={disable}
+                  disabled={busy}
+                >
+                  Disable
+                </button>
+              </div>
+            </>
+          ) : (
+            <form onSubmit={(e) => { e.preventDefault(); void enable(); }}>
+              <label htmlFor="guest-pw" className="share__label">
+                Guest password
+              </label>
               <input
-                readOnly
-                value={shareUrl(info.token)}
-                onFocus={(e) => e.currentTarget.select()}
-              />
-              <button
-                type="button"
-                className="btn"
-                onClick={copyLink}
-                disabled={busy}
-              >
-                Copy
-              </button>
-            </div>
-            <div className="share__row">
-              <span>Password</span>
-              <span className="share__hint">
-                {info.hasPassword ? "set" : "not set"}
-              </span>
-            </div>
-            <form onSubmit={setNewPassword} className="share__row">
-              <input
+                id="guest-pw"
                 type="password"
                 autoComplete="new-password"
-                placeholder="Change password…"
+                placeholder="Type a guest password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={busy}
               />
-              <button
-                type="submit"
-                className="btn"
-                disabled={busy || !password}
-              >
-                Update
-              </button>
+              <div className="modal__actions">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy || !password}
+                  onClick={() => void enable()}
+                >
+                  Enable link
+                </button>
+              </div>
             </form>
-            <div className="modal__actions">
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={rotate}
-                disabled={busy}
-              >
-                New link
-              </button>
-              <button
-                type="button"
-                className="btn btn--danger"
-                onClick={disable}
-                disabled={busy}
-              >
-                Disable
-              </button>
-            </div>
-          </>
-        ) : (
-          <form onSubmit={(e) => { e.preventDefault(); void enable(); }}>
-            <label htmlFor="guest-pw" className="share__label">
-              Guest password
-            </label>
-            <input
-              id="guest-pw"
-              type="password"
-              autoComplete="new-password"
-              placeholder="Type a guest password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={busy}
-              autoFocus
-            />
-            <div className="modal__actions">
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={onClose}
-                disabled={busy}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn"
-                disabled={busy || !password}
-              >
-                Enable sharing
-              </button>
-            </div>
-          </form>
-        )}
+          )}
+        </section>
+
+        <div className="modal__actions">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={onClose}
+          >
+            Done
+          </button>
+        </div>
       </div>
     </div>
   );
