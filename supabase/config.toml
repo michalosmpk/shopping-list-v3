@@ -1,0 +1,59 @@
+# Local Supabase project for shopping-list-v3.
+#
+# This file is consumed by `supabase start` (CLI) which boots a Postgres
+# database, GoTrue auth, PostgREST, Studio, and Realtime via Docker. The
+# project_id should be unique per repo so multiple local stacks don't clash.
+project_id = "shopping-list-v3"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost:54321"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:4000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Block public sign-up paths. Only the BFF (service role) creates users
+# via auth.admin.createUser, so this is a hard guard rather than a
+# UX-only switch.
+enable_signup = false
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+# Note: in this CLI version, `[auth.email] enable_signup = false` also
+# disables the email provider entirely (i.e. blocks login). The
+# top-level `[auth] enable_signup = false` already guards public
+# sign-up; we leave the email provider section at its defaults.
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
+
+[realtime]
+enabled = true
+
+[edge_runtime]
+enabled = false

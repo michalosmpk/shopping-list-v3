@@ -32,6 +32,7 @@ import {
   ChevronLeft,
   DragIcon,
   PlusIcon,
+  ShareIcon,
   TrashIcon,
 } from "./Icons";
 import { Swipeable } from "./Swipeable";
@@ -39,10 +40,22 @@ import { SyncChip } from "./SyncChip";
 import { useToast } from "./Toast";
 import { navigate } from "../router";
 import { useSync } from "../sync/SyncProvider";
+import { ShareConfigModal } from "./ShareConfigModal";
 
-export function ListScreen({ listId }: { listId: string }) {
+export type ListScreenMode = "user" | "guest";
+
+export function ListScreen({
+  listId,
+  mode = "user",
+  backHref = "/",
+}: {
+  listId: string;
+  mode?: ListScreenMode;
+  backHref?: string;
+}) {
   const [name, setName] = useState("");
   const [qty, setQty] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
 
   const list = useLiveQuery(() => db.lists.get(listId), [listId], undefined);
   const { status } = useSync();
@@ -62,7 +75,7 @@ export function ListScreen({ listId }: { listId: string }) {
     return () => window.clearTimeout(handle);
   }, [list, listId, status]);
 
-  const onBack = () => navigate("/");
+  const onBack = () => navigate(backHref);
 
   const items = useLiveQuery(
     () =>
@@ -150,8 +163,27 @@ export function ListScreen({ listId }: { listId: string }) {
             Clear ✓ ({checkedCount})
           </button>
         )}
+        {mode === "user" && (
+          <button
+            type="button"
+            className="iconbtn"
+            onClick={() => setShareOpen(true)}
+            aria-label="Share list"
+            title="Share list"
+          >
+            <ShareIcon />
+          </button>
+        )}
         <SyncChip />
       </header>
+
+      {shareOpen && mode === "user" && (
+        <ShareConfigModal
+          listId={listId}
+          listName={list.name}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       <form className="addbar" onSubmit={handleAdd}>
         <input

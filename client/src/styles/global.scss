@@ -783,3 +783,262 @@ button {
     padding: 8px 8px 8px 6px;
   }
 }
+
+/* ======================================================================
+   Generic buttons (used inside modals & screens)
+   ====================================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: $tap;
+  padding: 0 14px;
+  border-radius: $radius-md;
+  background: $accent;
+  color: $accent-fg;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s, transform 0.1s;
+
+  &:hover { background: $accent-strong; }
+  &:active { transform: scale(0.97); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  &--ghost {
+    background: transparent;
+    color: $fg-1;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    &:hover { background: $bg-2; color: $fg-0; }
+  }
+
+  &--danger {
+    background: $danger;
+    color: $danger-fg;
+    &:hover { background: #e11d48; }
+  }
+}
+
+/* ======================================================================
+   Admin button (header pill on the lists screen)
+   ====================================================================== */
+.adminbtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: $info;
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  min-height: 36px;
+  transition: background 0.15s, transform 0.1s;
+
+  &:hover { background: rgba(56, 189, 248, 0.2); }
+  &:active { transform: scale(0.97); }
+}
+
+/* ======================================================================
+   Modal
+   ====================================================================== */
+.modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1100;
+  animation: fade-in 0.15s ease-out;
+}
+
+.modal {
+  width: 100%;
+  max-width: 380px;
+  background: $bg-1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: $radius-lg;
+  box-shadow: $shadow-2;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: pop-in 0.18s ease-out;
+
+  h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  &__body {
+    color: $fg-2;
+    font-size: 13px;
+    margin: 0;
+  }
+
+  input[type="password"],
+  input[type="text"] {
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: $radius-md;
+    background: $bg-2;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: $fg-0;
+    font-size: 16px;
+    outline: none;
+    width: 100%;
+
+    &:focus { border-color: $accent; }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  &--share {
+    max-width: 460px;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ======================================================================
+   Share modal
+   ====================================================================== */
+.share {
+  &__urlrow,
+  &__row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  &__urlrow input {
+    flex: 1;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+
+  &__row {
+    justify-content: space-between;
+    color: $fg-1;
+    font-size: 14px;
+
+    input { flex: 1; }
+  }
+
+  &__hint {
+    color: $fg-3;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  &__label {
+    color: $fg-1;
+    font-size: 13px;
+  }
+}
+
+/* ======================================================================
+   Admin screen
+   ====================================================================== */
+.addbar--admin {
+  flex-wrap: wrap;
+  align-items: center;
+  position: relative;
+
+  input[type="password"] { flex: 1; }
+}
+
+.addbar__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: $fg-1;
+  font-size: 13px;
+  padding: 0 10px;
+  border-radius: $radius-md;
+  background: $bg-1;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: $tap;
+  cursor: pointer;
+  user-select: none;
+
+  input { width: 16px; height: 16px; min-height: 0; padding: 0; }
+}
+
+.addbar__error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.rows--admin .row--admin {
+  align-items: center;
+
+  .row__main {
+    cursor: default;
+  }
+
+  .row__main--readonly {
+    pointer-events: none;
+  }
+}
+
+.pillbtn {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: $bg-2;
+  color: $fg-1;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s;
+
+  &:hover { background: $bg-3; color: $fg-0; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  &--on {
+    color: $info;
+    border-color: rgba(56, 189, 248, 0.4);
+  }
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: $bg-2;
+  color: $fg-2;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+
+  &--admin {
+    background: rgba(56, 189, 248, 0.15);
+    color: $info;
+  }
+}

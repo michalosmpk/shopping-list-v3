@@ -27,6 +27,7 @@ import type { ShoppingList } from "../types";
 import { ChevronRight, DragIcon, PlusIcon, TrashIcon } from "./Icons";
 import { Swipeable } from "./Swipeable";
 import { SyncChip } from "./SyncChip";
+import { AdminButton } from "./AdminButton";
 import { listPath, navigate } from "../router";
 
 export function ListsScreen() {
@@ -72,6 +73,7 @@ export function ListsScreen() {
     <div className="screen">
       <header className="header">
         <h1>Lists</h1>
+        <AdminButton />
         <SyncChip />
       </header>
 

@@ -2,7 +2,7 @@
   "name": "shopping-list-v3",
   "private": true,
   "version": "0.1.0",
-  "description": "Offline-first shopping list PWA with multi-list support and a tiny Express + MongoDB sync backend.",
+  "description": "Offline-first shopping list PWA with admin-managed users, shareable per-list guest links, and a local Supabase backend behind a tiny Express BFF.",
   "workspaces": [
     "server",
     "client"
@@ -13,9 +13,15 @@
     "dev:client": "npm --workspace client run dev",
     "build": "npm --workspace server run build && npm --workspace client run build",
     "start": "npm --workspace server run start",
-    "typecheck": "npm --workspace server run typecheck && npm --workspace client run typecheck"
+    "typecheck": "npm --workspace server run typecheck && npm --workspace client run typecheck",
+    "supabase": "supabase",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "supabase": "^2.98.2"
   }
 }

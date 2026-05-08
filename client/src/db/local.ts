@@ -27,3 +27,14 @@ export async function getMeta<T>(key: string): Promise<T | undefined> {
 export async function setMeta(key: string, value: unknown): Promise<void> {
   await db.meta.put({ key, value });
 }
+
+// Wipe everything. Called whenever the active session changes
+// (login / logout / guest enter / guest exit / share-token change) so
+// we never display another identity's cached data.
+export async function resetLocalDb(): Promise<void> {
+  await db.transaction("rw", db.lists, db.items, db.meta, async () => {
+    await db.lists.clear();
+    await db.items.clear();
+    await db.meta.clear();
+  });
+}

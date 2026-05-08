@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 // vite-plugin-pwa SPA fallback (`navigateFallback: /index.html`).
 //
 // Routes used by the app:
-//   /              → ListsScreen (overview of all lists)
-//   /list/<listId> → ListScreen for that list
-// Anything else falls through to the overview.
+//   /                  → ListsScreen (overview of all lists)
+//   /list/<listId>     → ListScreen for that list
+//   /admin             → AdminScreen (gated to admins, with re-auth)
+//   /share/<token>     → Guest entry point for a shared list
 
 const NAV_EVENT = "shoppinglist:navigate";
 
@@ -39,15 +40,28 @@ export function useLocation(): string {
 export type Route =
   | { name: "lists" }
   | { name: "list"; id: string }
+  | { name: "admin" }
+  | { name: "share"; token: string }
   | { name: "unknown" };
 
 export function matchRoute(path: string): Route {
   if (path === "/" || path === "") return { name: "lists" };
+  if (path === "/admin" || path === "/admin/") return { name: "admin" };
   const m = /^\/list\/([^/]+)\/?$/.exec(path);
   if (m && m[1]) return { name: "list", id: decodeURIComponent(m[1]) };
+  const s = /^\/share\/([^/]+)\/?$/.exec(path);
+  if (s && s[1]) return { name: "share", token: decodeURIComponent(s[1]) };
   return { name: "unknown" };
 }
 
 export function listPath(id: string): string {
   return `/list/${encodeURIComponent(id)}`;
+}
+
+export function sharePath(token: string): string {
+  return `/share/${encodeURIComponent(token)}`;
+}
+
+export function shareUrl(token: string): string {
+  return `${window.location.origin}${sharePath(token)}`;
 }

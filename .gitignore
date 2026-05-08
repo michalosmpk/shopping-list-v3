@@ -8,3 +8,8 @@ build
 .vite
 coverage
 data/
+
+# Supabase local stack outputs (Docker volumes, generated types, dumps)
+supabase/.branches
+supabase/.temp
+supabase/seed.sql.bak

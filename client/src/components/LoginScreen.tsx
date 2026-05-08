@@ -2,7 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthProvider";
 
 export function LoginScreen() {
-  const { login, loginOffline } = useAuth();
+  const { login } = useAuth();
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -11,9 +12,7 @@ export function LoginScreen() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = navigator.onLine
-      ? await login(password)
-      : loginOffline(password);
+    const res = await login(name, password);
     setBusy(false);
     if (!res.ok) setError(res.error);
     else setPassword("");
@@ -37,9 +36,27 @@ export function LoginScreen() {
         </div>
         <h1>Shopping List</h1>
         <p className="login__subtitle">
-          Enter the shared password to continue.
+          Sign in with the account your admin gave you.
         </p>
         <form onSubmit={handleSubmit}>
+          <label className="visually-hidden" htmlFor="name">
+            Name
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="username"
+            inputMode="text"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={busy}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoFocus
+          />
           <label className="visually-hidden" htmlFor="password">
             Password
           </label>
@@ -53,14 +70,16 @@ export function LoginScreen() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={busy}
-            autoFocus
           />
-          <button type="submit" disabled={busy || !password}>
+          <button
+            type="submit"
+            disabled={busy || !name.trim() || !password}
+          >
             {busy ? "Signing in…" : "Sign in"}
           </button>
           {!navigator.onLine && (
             <p className="login__hint">
-              You're offline — only a previously used password will work.
+              You're offline — sign-in needs the server to reach you.
             </p>
           )}
           {error && <p className="login__error">{error}</p>}
