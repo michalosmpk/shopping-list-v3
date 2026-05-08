@@ -143,32 +143,21 @@ server {
 }
 ```
 
-### Auto-start on boot (optional, systemd)
+### Auto-start on boot, with nginx + HTTPS
 
-If you want the BFF to come back after a reboot, drop a unit file at
-`/etc/systemd/system/shopping-list.service`:
+For a "real" server (auto-start on reboot, restart on crash, TLS via
+Let's Encrypt) there's a complete walkthrough plus copy-paste-ready
+files in [`deploy/README.md`](./deploy/README.md):
 
-```ini
-[Unit]
-Description=shopping-list-v3 BFF
-Requires=docker.service
-After=docker.service network-online.target
+- `deploy/systemd/shopping-list-supabase.service` — boots the local
+  Supabase stack via Docker
+- `deploy/systemd/shopping-list.service` — runs the BFF, depends on
+  Supabase, restarts on crash
+- `deploy/nginx/shopping-list.conf` — HTTP→HTTPS redirect + reverse
+  proxy to `127.0.0.1:4000`
 
-[Service]
-Type=simple
-User=youruser
-WorkingDirectory=/srv/shopping-list-v3
-ExecStartPre=/usr/bin/npx --no -- supabase start
-ExecStart=/usr/bin/node server/dist/index.js
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Then `sudo systemctl enable --now shopping-list`. (Use this *instead of*
-`npm run prod` so you don't have two supervisors fighting over the port.)
+Use systemd *instead of* `npm run prod` so you don't have two
+supervisors fighting over the port.
 
 ## URLs
 

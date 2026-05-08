@@ -1,0 +1,34 @@
+# Boots the local Supabase Docker stack used by shopping-list-v3.
+#
+# Install:
+#   sudo cp deploy/systemd/shopping-list-supabase.service /etc/systemd/system/
+#   sudoedit /etc/systemd/system/shopping-list-supabase.service
+#     (replace <USER> and <INSTALL_DIR> below)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now shopping-list-supabase
+#
+# This unit is `oneshot` because `supabase start` returns once the Docker
+# containers are up — the long-running processes are the containers
+# themselves, managed by Docker. RemainAfterExit=yes lets the BFF unit
+# declare `Requires=shopping-list-supabase.service` and use it as a barrier.
+#
+# Logs:
+#   journalctl -u shopping-list-supabase -f
+
+[Unit]
+Description=shopping-list-v3 — local Supabase stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=<USER>
+WorkingDirectory=<INSTALL_DIR>
+ExecStart=/usr/bin/npx --no -- supabase start
+ExecStop=/usr/bin/npx --no -- supabase stop
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

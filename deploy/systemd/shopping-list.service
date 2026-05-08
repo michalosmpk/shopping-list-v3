@@ -1,0 +1,38 @@
+# Runs the Express BFF, which also serves the built Vite SPA on the same
+# port. Depends on the Supabase unit so the DB is reachable on startup.
+#
+# Install:
+#   sudo cp deploy/systemd/shopping-list.service /etc/systemd/system/
+#   sudoedit /etc/systemd/system/shopping-list.service
+#     (replace <USER> and <INSTALL_DIR> below)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now shopping-list
+#
+# Logs:        journalctl -u shopping-list -f
+# Restart:     sudo systemctl restart shopping-list
+# Update flow: git pull && npm ci && npm run build && sudo systemctl restart shopping-list
+
+[Unit]
+Description=shopping-list-v3 BFF (Express + bundled SPA)
+After=shopping-list-supabase.service network-online.target
+Requires=shopping-list-supabase.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<USER>
+WorkingDirectory=<INSTALL_DIR>
+EnvironmentFile=<INSTALL_DIR>/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node server/dist/index.js
+Restart=on-failure
+RestartSec=5
+
+# Hardening — the BFF doesn't need to write outside its own working dir.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
