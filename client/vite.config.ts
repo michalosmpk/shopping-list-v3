@@ -6,12 +6,33 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // autoUpdate + skipWaiting + clientsClaim is the "no manual prompt,
+      // new bundle wins on next page load" combo. Without skipWaiting the
+      // new worker would stay in the `waiting` state until every existing
+      // tab is closed, which on a PWA installed to home screen basically
+      // means "never" — users who never close the app would stay pinned
+      // to the old bundle indefinitely after a deploy.
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg"],
       workbox: {
+        // workbox-build's default `mode: 'production'` pipes sw.js
+        // through terser in a worker thread that intermittently exits
+        // before its renderChunk hook resolves — surfacing as
+        // `Unable to write the service worker file. Unfinished hook
+        // action(s) on exit: (terser) renderChunk`. The SW is ~15 KB
+        // of generated boilerplate so we don't actually need it
+        // minified; skipping the terser pass eliminates the flaky
+        // worker entirely.
+        mode: "development",
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         // We never want to serve stale API JSON from the SW — local Dexie
         // store is the source of truth offline. Only cache app shell.
         navigateFallback: "/index.html",
+        // Ignore version query strings in navigation requests so a hard
+        // reload like /?v=2 still hits the precached shell.
+        navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest}"],
         runtimeCaching: [
           {

@@ -57,8 +57,54 @@ async function main() {
   ];
   const clientDist = clientDistCandidates.find((p) => existsSync(p));
   if (clientDist) {
-    app.use(express.static(clientDist, { index: false, maxAge: "1h" }));
+    // Files whose contents change between builds without their URL
+    // changing — must never be cached, otherwise a redeploy looks
+    // invisible until the user nukes their cache. Vite's hashed
+    // /assets/* bundle gets the opposite treatment further down: a
+    // 1-year immutable cache because its filename changes on every
+    // build.
+    const NEVER_CACHE = new Set([
+      "/index.html",
+      "/sw.js",
+      "/registerSW.js",
+      "/manifest.webmanifest",
+      "/workbox-",
+    ]);
+    app.use((req, res, next) => {
+      if (req.method !== "GET" && req.method !== "HEAD") return next();
+      const p = req.path;
+      const noCache =
+        p === "/" ||
+        NEVER_CACHE.has(p) ||
+        p.startsWith("/workbox-") ||
+        p.endsWith(".webmanifest");
+      if (noCache) {
+        res.setHeader(
+          "Cache-Control",
+          "no-cache, no-store, must-revalidate"
+        );
+      }
+      next();
+    });
+    app.use(
+      express.static(clientDist, {
+        index: false,
+        // setHeaders runs AFTER the no-cache middleware above, so we
+        // only override the long-lived `immutable` policy on the
+        // hashed asset bundle. Everything else inherits the no-cache
+        // header set up above.
+        setHeaders(res, filePath) {
+          if (filePath.includes(`${clientDist}/assets/`)) {
+            res.setHeader(
+              "Cache-Control",
+              "public, max-age=31536000, immutable"
+            );
+          }
+        },
+      })
+    );
     app.get(/^(?!\/api\/).*/, (_req: Request, res: Response) => {
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       res.sendFile(resolve(clientDist, "index.html"));
     });
     console.log(`[static] serving SPA from ${clientDist}`);

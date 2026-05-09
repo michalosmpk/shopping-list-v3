@@ -249,3 +249,4 @@ fi
 
 ok "redeploy complete"
 printf "  %sjournalctl -u shopping-list -f%s   to follow logs\n" "$c_dim" "$c_reset"
+printf "  %sthe PWA service worker auto-updates on next page load%s\n" "$c_dim" "$c_reset"
