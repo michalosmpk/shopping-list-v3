@@ -10,6 +10,10 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
+  restrictToParentElement,
+  restrictToVerticalAxis,
+} from "@dnd-kit/modifiers";
+import {
   SortableContext,
   arrayMove,
   useSortable,
@@ -22,12 +26,14 @@ import {
   deleteList,
   reorderLists,
   renameList,
+  restoreList,
 } from "../db/operations";
 import type { ShoppingList } from "../types";
 import { ChevronRight, DragIcon, PlusIcon, TrashIcon } from "./Icons";
 import { Swipeable } from "./Swipeable";
 import { SyncChip } from "./SyncChip";
 import { AdminButton } from "./AdminButton";
+import { useToast } from "./Toast";
 import { listPath, navigate } from "../router";
 
 export function ListsScreen() {
@@ -94,6 +100,7 @@ export function ListsScreen() {
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
       >
         <SortableContext
           items={(lists ?? []).map((l) => l.id)}
@@ -132,6 +139,7 @@ function SortableListRow({
     sortable;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(list.name);
+  const { toast } = useToast();
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -163,18 +171,25 @@ function SortableListRow({
     }
   }
 
-  async function handleTrashClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    const prompt = isOwner
-      ? `Delete "${list.name}"?`
-      : `Leave "${list.name}"?`;
-    if (!confirm(prompt)) return;
-    await deleteList(list.id);
+  // Single delete path used by both the trash icon and swipe-left.
+  // No `confirm()` — the action is reversible via the 10-second toast,
+  // which is friendlier on desktop and matches how items already work.
+  async function handleDelete() {
+    const id = list.id;
+    const label = list.name;
+    const verb = isOwner ? "Deleted" : "Left";
+    await deleteList(id);
+    toast({
+      text: `${verb} "${label}"`,
+      actionLabel: "Undo",
+      duration: 10000,
+      onAction: () => restoreList(id),
+    });
   }
 
   return (
     <li ref={setNodeRef} style={style}>
-      <Swipeable onDelete={() => deleteList(list.id)}>
+      <Swipeable onDelete={handleDelete}>
         <div className="row">
           <button
             type="button"
@@ -211,13 +226,17 @@ function SortableListRow({
             >
               <span className="row__title">
                 {list.name}
-                {!isOwner && (
+                {list.shared && (
                   <span className="badge badge--shared"> shared</span>
                 )}
               </span>
               <span className="row__meta">
                 {itemCount} {itemCount === 1 ? "item" : "items"}
-                {!isOwner && list.ownerName && ` · by ${list.ownerName}`}
+                {!isOwner && list.ownerName
+                  ? ` · by ${list.ownerName}`
+                  : isOwner && list.shared
+                    ? " · shared by you"
+                    : ""}
               </span>
             </button>
           )}
@@ -225,7 +244,10 @@ function SortableListRow({
           <button
             type="button"
             className="row__icon"
-            onClick={handleTrashClick}
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleDelete();
+            }}
             aria-label={isOwner ? `Delete ${list.name}` : `Leave ${list.name}`}
             data-no-swipe
           >

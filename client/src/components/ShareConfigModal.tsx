@@ -4,6 +4,39 @@ import { shareUrl } from "../router";
 import { TrashIcon } from "./Icons";
 import { useToast } from "./Toast";
 
+// Tries the modern Clipboard API first (HTTPS / localhost only) and
+// falls back to a hidden-textarea + execCommand for plain HTTP — that
+// path still works on iOS Safari and older Android browsers where
+// `navigator.clipboard` is undefined.
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // fall through to the legacy path
+    }
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    // Position offscreen but keep it focusable; iOS requires a real
+    // element in the layout to honour the selection-based copy.
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 // Owner-side share configuration. Lives inside ListScreen behind a
 // "Share" button.
 //
@@ -106,11 +139,12 @@ export function ShareConfigModal({
   async function copyLink() {
     if (!info?.token) return;
     const url = shareUrl(info.token);
-    try {
-      await navigator.clipboard.writeText(url);
+    if (await copyTextToClipboard(url)) {
       toast({ text: "Link copied!", duration: 2500 });
-    } catch {
-      toast({ text: url, duration: 6000 });
+    } else {
+      // Last-resort fallback: surface the URL so the user can long-press
+      // and copy manually (mobile Safari on plain HTTP gets here).
+      toast({ text: url, duration: 8000 });
     }
   }
 
@@ -234,9 +268,11 @@ export function ShareConfigModal({
 
           {info?.enabled && info.token ? (
             <>
-              <div className="share__urlrow">
+              <div className="share__row share__row--url">
                 <input
+                  type="text"
                   readOnly
+                  className="share__url"
                   value={shareUrl(info.token)}
                   onFocus={(e) => e.currentTarget.select()}
                 />
@@ -248,12 +284,6 @@ export function ShareConfigModal({
                 >
                   Copy
                 </button>
-              </div>
-              <div className="share__row">
-                <span>Password</span>
-                <span className="share__hint">
-                  {info.hasPassword ? "set" : "not set"}
-                </span>
               </div>
               <form onSubmit={setNewPassword} className="share__row">
                 <input
@@ -272,7 +302,10 @@ export function ShareConfigModal({
                   Update
                 </button>
               </form>
-              <div className="modal__actions">
+              <div className="share__row">
+                <p className="share__row-hint">
+                  Generate a fresh link — the old one stops working.
+                </p>
                 <button
                   type="button"
                   className="btn btn--ghost"
@@ -281,6 +314,11 @@ export function ShareConfigModal({
                 >
                   New link
                 </button>
+              </div>
+              <div className="share__row">
+                <p className="share__row-hint">
+                  Stop sharing this list publicly.
+                </p>
                 <button
                   type="button"
                   className="btn btn--danger"
@@ -292,10 +330,13 @@ export function ShareConfigModal({
               </div>
             </>
           ) : (
-            <form onSubmit={(e) => { e.preventDefault(); void enable(); }}>
-              <label htmlFor="guest-pw" className="share__label">
-                Guest password
-              </label>
+            <form
+              className="share__row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void enable();
+              }}
+            >
               <input
                 id="guest-pw"
                 type="password"
@@ -305,21 +346,19 @@ export function ShareConfigModal({
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={busy}
               />
-              <div className="modal__actions">
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy || !password}
-                  onClick={() => void enable()}
-                >
-                  Enable link
-                </button>
-              </div>
+              <button
+                type="submit"
+                className="btn"
+                disabled={busy || !password}
+              >
+                Enable link
+              </button>
             </form>
           )}
         </section>
 
-        <div className="modal__actions">
+        <div className="share__row share__row--footer">
+          <span aria-hidden="true" className="share__row-hint" />
           <button
             type="button"
             className="btn btn--ghost"

@@ -10,6 +10,10 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
+  restrictToParentElement,
+  restrictToVerticalAxis,
+} from "@dnd-kit/modifiers";
+import {
   SortableContext,
   arrayMove,
   useSortable,
@@ -210,6 +214,7 @@ export function ListScreen({
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
       >
         <SortableContext
           items={(items ?? []).map((i) => i.id)}

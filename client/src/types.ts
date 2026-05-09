@@ -31,6 +31,10 @@ export type ShoppingList = {
   ownerId?: string;
   ownerName?: string;
   isOwner?: boolean;
+  // True when the list is exposed to anyone besides its owner — public
+  // guest link enabled or at least one named member. Drives the
+  // "shared" badge on the lists overview for both owners and members.
+  shared?: boolean;
 };
 
 export type SyncListPayload = {
@@ -39,11 +43,12 @@ export type SyncListPayload = {
   position: number;
   updatedAt: number;
   deleted: boolean;
-  // These three are server-populated and ignored on push (the server
+  // These four are server-populated and ignored on push (the server
   // re-derives them per-recipient).
   ownerId?: string;
   ownerName?: string;
   isOwner?: boolean;
+  shared?: boolean;
   items: Array<{
     id: string;
     name: string;

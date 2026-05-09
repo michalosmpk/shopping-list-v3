@@ -51,6 +51,11 @@ export type WireList = {
   ownerId: string;
   ownerName?: string;
   isOwner: boolean;
+  // True when the list is exposed to anyone besides its owner — either
+  // a public guest link is enabled or at least one named user has been
+  // invited. For non-owners, always true (they only see the list because
+  // it's shared with them). Drives the "shared" badge on the UI.
+  shared: boolean;
   items: WireItem[];
 };
 
@@ -58,6 +63,7 @@ function shapeWire(opts: {
   list: DbList;
   position: number;
   isOwner: boolean;
+  shared: boolean;
   ownerName?: string;
   items: DbItem[];
 }): WireList {
@@ -70,6 +76,7 @@ function shapeWire(opts: {
     ownerId: opts.list.owner_id,
     ownerName: opts.ownerName,
     isOwner: opts.isOwner,
+    shared: opts.shared,
     items: opts.items
       .filter((it) => it.list_id === opts.list.id)
       .map(dbItemToWire),
@@ -91,6 +98,20 @@ export function dbItemToWire(item: DbItem): WireItem {
 // ---------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------
+
+// Cheap "is this owned list exposed to anyone besides its owner?" check.
+// Used wherever we need to populate WireList.shared from a single
+// DbList row. Public-link case is free (the flag is on the row itself);
+// member-count case costs one head=true count query.
+async function isOwnedListShared(list: DbList): Promise<boolean> {
+  if (list.share_enabled === true) return true;
+  const { count, error } = await supabaseAdmin
+    .from("list_members")
+    .select("user_id", { count: "exact", head: true })
+    .eq("list_id", list.id);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
 
 async function getOwnerNamesByIds(ids: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
@@ -114,6 +135,7 @@ export async function getListsForUser(userId: string): Promise<WireList[]> {
     .select("*")
     .eq("owner_id", userId);
   if (oerr) throw oerr;
+  const ownedLists = (owned as DbList[]) ?? [];
 
   // Lists this user is a member of (with their personal position).
   const { data: memberships, error: merr } = await supabaseAdmin
@@ -138,7 +160,22 @@ export async function getListsForUser(userId: string): Promise<WireList[]> {
     sharedLists = (data as DbList[]) ?? [];
   }
 
-  const allLists: DbList[] = [...((owned as DbList[]) ?? []), ...sharedLists];
+  // For owned lists, "shared" = public guest link enabled OR at least
+  // one named member exists. One batched query covers all of them.
+  const ownedIds = ownedLists.map((l) => l.id);
+  const ownedWithMembers = new Set<string>();
+  if (ownedIds.length > 0) {
+    const { data, error } = await supabaseAdmin
+      .from("list_members")
+      .select("list_id")
+      .in("list_id", ownedIds);
+    if (error) throw error;
+    for (const row of (data as { list_id: string }[]) ?? []) {
+      ownedWithMembers.add(row.list_id);
+    }
+  }
+
+  const allLists: DbList[] = [...ownedLists, ...sharedLists];
   if (allLists.length === 0) return [];
 
   // Fetch every item once, group by list.
@@ -154,10 +191,14 @@ export async function getListsForUser(userId: string): Promise<WireList[]> {
   return allLists.map((l) => {
     const isOwner = l.owner_id === userId;
     const position = isOwner ? l.position : memberMap.get(l.id) ?? 0;
+    const shared = isOwner
+      ? l.share_enabled === true || ownedWithMembers.has(l.id)
+      : true;
     return shapeWire({
       list: l,
       position,
       isOwner,
+      shared,
       ownerName: ownerNames.get(l.owner_id),
       items: (items as DbItem[]) ?? [],
     });
@@ -183,10 +224,24 @@ export async function getListByIdForUser(
     .eq("list_id", listId);
   if (error) throw error;
   const ownerNames = await getOwnerNamesByIds([list.owner_id]);
+  let shared = true;
+  if (isOwner) {
+    if (list.share_enabled === true) {
+      shared = true;
+    } else {
+      const { count, error: cerr } = await supabaseAdmin
+        .from("list_members")
+        .select("user_id", { count: "exact", head: true })
+        .eq("list_id", listId);
+      if (cerr) throw cerr;
+      shared = (count ?? 0) > 0;
+    }
+  }
   return shapeWire({
     list,
     position,
     isOwner,
+    shared,
     ownerName: ownerNames.get(list.owner_id),
     items: (items as DbItem[]) ?? [],
   });
@@ -206,6 +261,8 @@ export async function getListByIdForGuest(
     list,
     position: list.position,
     isOwner: false,
+    // A guest is by definition viewing via a public share link.
+    shared: true,
     items: (items as DbItem[]) ?? [],
   });
 }
@@ -401,6 +458,8 @@ export async function applyClientChanges(
           list: created,
           position: created.position,
           isOwner: true,
+          // Brand-new list — by definition not yet shared with anyone.
+          shared: false,
           ownerName: ownerNames.get(scope.userId),
           items,
         })
@@ -438,6 +497,7 @@ export async function applyClientChanges(
             list: updated,
             position: updated.position,
             isOwner: true,
+            shared: await isOwnedListShared(updated),
             ownerName: ownerNames.get(updated.owner_id),
             items,
           })
@@ -451,6 +511,9 @@ export async function applyClientChanges(
             list: { ...existing, deleted: true, updated_at_ms: inc.updatedAt },
             position: memberPosition,
             isOwner: false,
+            // The list is going away from this user's view; the flag
+            // is moot but we still set it for type-correctness.
+            shared: true,
             items: [],
           })
         );
@@ -472,6 +535,7 @@ export async function applyClientChanges(
           list: updated,
           position: updated.position,
           isOwner: true,
+          shared: await isOwnedListShared(updated),
           ownerName: ownerNames.get(updated.owner_id),
           items,
         })
@@ -498,6 +562,7 @@ export async function applyClientChanges(
           list: finalList,
           position: pos,
           isOwner: false,
+          shared: true,
           ownerName: ownerNames.get(finalList.owner_id),
           items,
         })
@@ -513,6 +578,7 @@ export async function applyClientChanges(
           list: existing,
           position: existing.position,
           isOwner: false,
+          shared: true,
           items,
         })
       );

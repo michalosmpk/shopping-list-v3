@@ -215,6 +215,12 @@ button {
     color: $fg-0;
     line-height: 1;
     white-space: nowrap;
+    // Reserve a fixed slot wide enough for the longest label ("Offline")
+    // so the dot and icon never reflow when the status changes.
+    display: inline-block;
+    min-width: 52px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
   }
 
   &__icon {
@@ -648,7 +654,9 @@ button {
   gap: var(--toast-gap);
   align-items: stretch;
   pointer-events: none; // page taps pass through when no toasts
-  z-index: 1000;
+  // Above .modal__backdrop (1100) so feedback toasts (e.g. "Link
+  // copied!") fired from inside a modal aren't hidden behind it.
+  z-index: 1200;
 
   // Cap the visible stack at four toasts; the rest scrolls inside.
   max-height: calc(
@@ -861,6 +869,12 @@ button {
 .modal {
   width: 100%;
   max-width: 380px;
+  // Cap modal height so it never exceeds the viewport on tiny screens;
+  // long content (long member lists, URL rows) scrolls inside.
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   background: $bg-1;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: $radius-lg;
@@ -908,6 +922,14 @@ button {
 
   &--share {
     max-width: 460px;
+
+    // Uniform button width across every .btn inside the share modal —
+    // including the action-row buttons (New link / Disable / Enable
+    // link / Done) which sit outside .share__row. Inputs in flex rows
+    // already declare flex: 1 1 auto so they happily fill the gap.
+    .btn {
+      min-width: 96px;
+    }
   }
 }
 
@@ -925,37 +947,61 @@ button {
    Share modal
    ====================================================================== */
 .share {
-  &__urlrow,
+  // Every action lives in a `.share__row`. Each row is a 2-column flex
+  // layout: a flexible left side (input or descriptor text) plus a
+  // fixed-width button pinned to the right. That guarantees the button
+  // column lines up vertically across rows — Add, Copy, Update, New
+  // link, Disable, Enable link, Done all share the same right edge —
+  // even when the left column changes shape between an input and a
+  // hint paragraph. Wide enough to fit the longest label ("Enable
+  // link") without truncating.
+  --share-btn-w: 96px;
+
   &__row {
     display: flex;
-    gap: 8px;
     align-items: center;
-  }
-
-  &__urlrow input {
-    flex: 1;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 13px;
-  }
-
-  &__row {
-    justify-content: space-between;
+    gap: 8px;
     color: $fg-1;
     font-size: 14px;
 
-    input { flex: 1; }
+    > .btn {
+      flex: 0 0 var(--share-btn-w);
+      width: var(--share-btn-w);
+    }
+
+    // Anything in the left column (input or hint) absorbs the
+    // remaining width and is allowed to shrink below its intrinsic
+    // size so a long share URL ellipsis-truncates instead of pushing
+    // the button off the modal.
+    > input,
+    > .share__row-hint {
+      flex: 1 1 auto;
+      min-width: 0;
+      margin: 0;
+    }
   }
 
-  &__hint {
-    color: $fg-3;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
-  &__label {
-    color: $fg-1;
+  &__row-hint {
+    color: $fg-2;
     font-size: 13px;
+    line-height: 1.35;
+  }
+
+  &__url {
+    width: 100%;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    // The modal-level `input[type="text"]` rule only matches when the
+    // attribute is explicit — restate the colors here so the readonly
+    // URL input renders dark-text-on-dark-bg in every browser.
+    color: $fg-0;
+    background: $bg-2;
+  }
+
+  &__row--footer {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   &__section {

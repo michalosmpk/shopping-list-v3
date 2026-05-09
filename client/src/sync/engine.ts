@@ -105,6 +105,7 @@ async function applyServerLists(serverLists: SyncListPayload[]): Promise<void> {
           ownerId: sl.ownerId,
           ownerName: sl.ownerName,
           isOwner: sl.isOwner,
+          shared: sl.shared,
         };
         await db.lists.put(newList);
       } else if (!localIsNewer) {
@@ -119,6 +120,7 @@ async function applyServerLists(serverLists: SyncListPayload[]): Promise<void> {
           ownerId: sl.ownerId,
           ownerName: sl.ownerName,
           isOwner: sl.isOwner,
+          shared: sl.shared,
         };
         await db.lists.put(merged);
       } else {
@@ -129,6 +131,7 @@ async function applyServerLists(serverLists: SyncListPayload[]): Promise<void> {
           ownerId: sl.ownerId,
           ownerName: sl.ownerName,
           isOwner: sl.isOwner,
+          shared: sl.shared,
         });
       }
 

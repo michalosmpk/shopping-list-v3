@@ -55,6 +55,32 @@ export async function deleteList(id: string) {
   });
 }
 
+export async function restoreList(id: string) {
+  // Reverse of deleteList: undelete the list and its cascaded items.
+  // We bump `updatedAt` so the sync engine's last-writer-wins picks the
+  // restore over the prior delete if both happen to be in flight.
+  // Effectively only works while the local "deleted" rows are still
+  // dirty (i.e. before they've been pushed and acked) — past that
+  // point an owner is reviving a server-deleted list and a member
+  // would need to be re-invited; same constraint as restoreItem.
+  await db.transaction("rw", db.lists, db.items, async () => {
+    const ts = now();
+    const list = await db.lists.get(id);
+    if (!list) return;
+    const isOwner = list.isOwner !== false;
+    await db.lists.update(id, { deleted: false, updatedAt: ts, dirty: 1 });
+    const items = await db.items.where({ listId: id }).toArray();
+    for (const it of items) {
+      if (!it.deleted) continue;
+      await db.items.update(it.id, {
+        deleted: false,
+        updatedAt: ts,
+        dirty: isOwner ? 1 : 0,
+      });
+    }
+  });
+}
+
 export async function reorderLists(orderedIds: string[]) {
   const ts = now();
   await db.transaction("rw", db.lists, async () => {

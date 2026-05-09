@@ -24,7 +24,8 @@
     "prod:stop": "scripts/prod.sh stop",
     "prod:restart": "scripts/prod.sh restart",
     "prod:status": "scripts/prod.sh status",
-    "prod:logs": "scripts/prod.sh logs"
+    "prod:logs": "scripts/prod.sh logs",
+    "redeploy": "scripts/redeploy.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

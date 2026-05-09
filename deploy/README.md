@@ -159,21 +159,52 @@ sudo systemctl restart shopping-list
 
 ---
 
-## Update flow (after `git pull`)
+## Update flow
+
+The repo ships a `scripts/redeploy.sh` (also available as `npm run
+redeploy`) that handles the whole pull → install → build → restart
+cycle without ever touching `.env` or the Supabase Docker volume:
 
 ```bash
 cd /srv/shopping-list-v3
+npm run redeploy
+```
+
+What it does, in order:
+
+1. refuses to run as root, refuses on a dirty working tree
+2. `git fetch && git pull --ff-only` and prints the list of new commits
+3. `npm ci` (reproducible install from the lockfile)
+4. `npm run build` — clears `client/node_modules/.vite` first to dodge a
+   known stale-cache crash from `vite-plugin-pwa`
+5. `sudo systemctl restart shopping-list` (or falls back to
+   `scripts/prod.sh restart` on hosts without the systemd unit)
+6. polls `http://127.0.0.1:4000/api/health` for up to 30 s; on failure
+   it dumps the last 30 lines of `journalctl -u shopping-list` and
+   exits non-zero
+
+The Supabase stack stays up across deploys — only the BFF restarts
+(~1 s of downtime). Your data is in a Docker volume that is never
+touched.
+
+Useful flags:
+
+```bash
+npm run redeploy -- --no-build       # config-only restart, skips install + build
+npm run redeploy -- --no-pull        # deploy whatever is already on disk
+npm run redeploy -- --migrate        # also run `supabase migration up` for new SQL
+npm run redeploy -- --branch hotfix  # deploy a non-default branch
+npm run redeploy -- --force-dirty    # carry uncommitted edits into the build
+```
+
+If you'd rather run things manually, the equivalent four commands are:
+
+```bash
 git pull
 npm ci
 npm run build
 sudo systemctl restart shopping-list
-```
-
-The Supabase stack stays up across deploys — only the BFF restarts (~1 s
-of downtime). To apply new SQL migrations, run them through the Supabase
-CLI:
-
-```bash
+# then to apply any new migrations:
 npx --no -- supabase migration up
 ```
 
