@@ -9,6 +9,7 @@ build
 coverage
 data/
 logs/
+*.tsbuildinfo
 
 # Supabase local stack outputs (Docker volumes, generated types, dumps)
 supabase/.branches

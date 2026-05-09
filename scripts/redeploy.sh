@@ -118,6 +118,18 @@ printf "%sredeploy%s  branch=%s commit=%s install=%s\n" \
 # --- pull --------------------------------------------------------------------
 
 if [ "$DO_PULL" = "1" ]; then
+  # Build artifacts that earlier revisions of the repo accidentally
+  # tracked (notably TypeScript's *.tsbuildinfo incremental cache).
+  # They get rewritten on every build, so by the time you redeploy
+  # they're always "modified" — not a real edit. Quietly drop them
+  # from the index BEFORE the dirty-tree check so they don't block
+  # the pull. Safe even on hosts where the files aren't tracked
+  # anymore (rm --cached --ignore-unmatch is a no-op in that case).
+  git rm --cached --quiet --ignore-unmatch \
+    client/tsconfig.app.tsbuildinfo \
+    client/tsconfig.node.tsbuildinfo \
+    >/dev/null 2>&1 || true
+
   if ! git diff --quiet --ignore-submodules HEAD -- 2>/dev/null \
      || ! git diff --cached --quiet --ignore-submodules HEAD -- 2>/dev/null; then
     if [ "$FORCE_DIRTY" = "1" ]; then
