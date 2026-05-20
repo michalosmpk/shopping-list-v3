@@ -33,11 +33,20 @@ import { ChevronRight, DragIcon, PlusIcon, TrashIcon } from "./Icons";
 import { Swipeable } from "./Swipeable";
 import { SyncChip } from "./SyncChip";
 import { AdminButton } from "./AdminButton";
+import { ConfirmModal } from "./ConfirmModal";
 import { useToast } from "./Toast";
 import { listPath, navigate } from "../router";
 
 export function ListsScreen() {
   const [newName, setNewName] = useState("");
+  // List pending a delete confirmation. Lifted up here (rather than per
+  // row) so the trash icon AND the swipe-left gesture share one modal,
+  // and so the modal renders at the screen level — outside the row's
+  // transform/clip so the backdrop covers the whole viewport.
+  const [pendingDelete, setPendingDelete] = useState<ShoppingList | null>(
+    null
+  );
+  const { toast } = useToast();
 
   const lists = useLiveQuery(
     () =>
@@ -73,6 +82,24 @@ export function ListsScreen() {
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(ids, oldIndex, newIndex);
     await reorderLists(reordered);
+  }
+
+  // Whole-list deletes are heavyweight (they cascade to every item and
+  // can be hard to spot in the undo toast among many concurrent
+  // notifications) so we gate them behind a confirm prompt. Items keep
+  // the lighter undo-toast-only flow — see ListScreen.
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const { id, name } = pendingDelete;
+    const verb = pendingDelete.isOwner !== false ? "Deleted" : "Left";
+    setPendingDelete(null);
+    await deleteList(id);
+    toast({
+      text: `${verb} "${name}"`,
+      actionLabel: "Undo",
+      duration: 10000,
+      onAction: () => restoreList(id),
+    });
   }
 
   return (
@@ -112,6 +139,7 @@ export function ListsScreen() {
                 key={list.id}
                 list={list}
                 onOpen={() => navigate(listPath(list.id))}
+                onRequestDelete={() => setPendingDelete(list)}
               />
             ))}
             {(lists ?? []).length === 0 && (
@@ -123,6 +151,24 @@ export function ListsScreen() {
           </ul>
         </SortableContext>
       </DndContext>
+
+      {pendingDelete && (
+        <ConfirmModal
+          title={
+            pendingDelete.isOwner !== false
+              ? `Delete "${pendingDelete.name}"?`
+              : `Leave "${pendingDelete.name}"?`
+          }
+          body={
+            pendingDelete.isOwner !== false
+              ? "The list and all its items will be removed for everyone it's shared with. You'll have a few seconds to undo from the toast."
+              : "You'll stop seeing this list. The owner can re-add you any time."
+          }
+          confirmLabel={pendingDelete.isOwner !== false ? "Delete" : "Leave"}
+          onConfirm={() => void confirmDelete()}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }
@@ -130,16 +176,17 @@ export function ListsScreen() {
 function SortableListRow({
   list,
   onOpen,
+  onRequestDelete,
 }: {
   list: ShoppingList;
   onOpen: () => void;
+  onRequestDelete: () => void;
 }) {
   const sortable = useSortable({ id: list.id });
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     sortable;
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(list.name);
-  const { toast } = useToast();
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -171,25 +218,9 @@ function SortableListRow({
     }
   }
 
-  // Single delete path used by both the trash icon and swipe-left.
-  // No `confirm()` — the action is reversible via the 10-second toast,
-  // which is friendlier on desktop and matches how items already work.
-  async function handleDelete() {
-    const id = list.id;
-    const label = list.name;
-    const verb = isOwner ? "Deleted" : "Left";
-    await deleteList(id);
-    toast({
-      text: `${verb} "${label}"`,
-      actionLabel: "Undo",
-      duration: 10000,
-      onAction: () => restoreList(id),
-    });
-  }
-
   return (
     <li ref={setNodeRef} style={style}>
-      <Swipeable onDelete={handleDelete}>
+      <Swipeable onDelete={onRequestDelete}>
         <div className="row">
           <button
             type="button"
@@ -246,7 +277,7 @@ function SortableListRow({
             className="row__icon"
             onClick={(e) => {
               e.stopPropagation();
-              void handleDelete();
+              onRequestDelete();
             }}
             aria-label={isOwner ? `Delete ${list.name}` : `Leave ${list.name}`}
             data-no-swipe
