@@ -2,6 +2,8 @@
 
 An offline-first shopping list PWA with multi-list support, real user accounts (admin-managed), shareable per-list links with guest passwords, manual reordering, and a tiny Express BFF on top of a locally-hosted Supabase. Mobile-first; installs to your phone's home screen as a "real app."
 
+> Coding agents (Claude, Codex, Cursor, …) should read [`AGENTS.md`](./AGENTS.md) first — it covers the invariants, sync/auth model, and common pitfalls that aren't obvious from the file tree.
+
 ## Stack
 
 - **Client**: Vite + React + TypeScript + SCSS
