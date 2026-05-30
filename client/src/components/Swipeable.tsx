@@ -33,6 +33,11 @@ export function Swipeable({
   const startX = useRef(0);
   const startY = useRef(0);
   const captured = useRef(false);
+  // Once a gesture is judged to be a vertical scroll (or anything that
+  // isn't a clean left-swipe) we bail for the REST of that pointer
+  // sequence. Without this, a scroll that momentarily leans left could
+  // re-trigger capture on a later move and flash the delete background.
+  const bailed = useRef(false);
   const pointerId = useRef<number | null>(null);
 
   const [dx, setDx] = useState(0);
@@ -43,6 +48,7 @@ export function Swipeable({
     setAnimating(animate);
     setDx(0);
     captured.current = false;
+    bailed.current = false;
     pointerId.current = null;
   }
 
@@ -56,12 +62,13 @@ export function Swipeable({
     startY.current = e.clientY;
     pointerId.current = e.pointerId;
     captured.current = false;
+    bailed.current = false;
     setAnimating(false);
   }
 
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
     if (pointerId.current !== e.pointerId) return;
-    if (removing) return;
+    if (removing || bailed.current) return;
 
     const deltaX = e.clientX - startX.current;
     const deltaY = e.clientY - startY.current;
@@ -70,12 +77,16 @@ export function Swipeable({
       if (Math.abs(deltaX) < ACTIVATE_PX && Math.abs(deltaY) < ACTIVATE_PX) {
         return;
       }
-      // Only capture leftward, mostly-horizontal gestures. Otherwise let
-      // the browser handle vertical scroll / dnd-kit do its thing.
-      if (deltaX < 0 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Decide direction exactly once per gesture. A swipe is a leftward
+      // drag that clearly dominates the vertical movement; the 1.3×
+      // ratio leaves diagonal/scroll gestures to the browser. Anything
+      // else bails permanently so a later jitter can't start a swipe
+      // mid-scroll.
+      if (deltaX < 0 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
         captured.current = true;
         innerRef.current?.setPointerCapture(e.pointerId);
       } else {
+        bailed.current = true;
         return;
       }
     }
@@ -128,6 +139,10 @@ export function Swipeable({
       <div
         className={`swipe__bg${committing ? " swipe__bg--commit" : ""}`}
         aria-hidden={!revealing}
+        // Hidden at rest so the red panel can't bleed past the row's
+        // rounded corners while scrolling; only shown during an actual
+        // leftward swipe.
+        style={{ visibility: revealing ? "visible" : "hidden" }}
       >
         <TrashIcon />
         <span className="swipe__bg-label">Delete</span>

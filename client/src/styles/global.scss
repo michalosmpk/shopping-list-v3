@@ -338,7 +338,10 @@ button {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding: 0 0 24px;
+  // Generous bottom padding (~ a phone keyboard's height) so the last
+  // rows can always be scrolled clear of an on-screen keyboard when
+  // adding or editing — you can scroll to the bottom "and a bit more".
+  padding: 0 0 calc(40vh + #{$safe-bottom});
   // Small horizontal breathing room so swipe-to-delete shadows aren't
   // clipped on the right edge.
   margin: 0 -2px;

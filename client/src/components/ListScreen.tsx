@@ -87,7 +87,14 @@ export function ListScreen({
         .where({ listId })
         .filter((i) => !i.deleted)
         .toArray()
-        .then((arr) => arr.sort((a, b) => a.position - b.position)),
+        // Checked items sink to the bottom; within each group keep the
+        // user's manual (drag) order via `position`.
+        .then((arr) =>
+          arr.sort((a, b) => {
+            if (a.checked !== b.checked) return a.checked ? 1 : -1;
+            return a.position - b.position;
+          })
+        ),
     [listId],
     []
   );
