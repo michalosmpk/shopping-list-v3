@@ -8,11 +8,12 @@
     "client"
   ],
   "scripts": {
+    "start": "scripts/dev.sh",
     "dev": "concurrently -k -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "npm --workspace server run dev",
     "dev:client": "npm --workspace client run dev",
     "build": "npm --workspace server run build && npm --workspace client run build",
-    "start": "npm --workspace server run start",
+    "start:server": "npm --workspace server run start",
     "typecheck": "npm --workspace server run typecheck && npm --workspace client run typecheck",
     "supabase": "supabase",
     "supabase:start": "supabase start",

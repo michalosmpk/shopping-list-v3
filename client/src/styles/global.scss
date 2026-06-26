@@ -350,6 +350,32 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  // Thin, subtle scrollbar on desktop. Touch devices hide it natively;
+  // this only shows for mouse/trackpad users with overlay scrollbars off.
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 999px;
+    // Inset the thumb so it reads as a thin pill, not a full-width bar.
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.55);
+    background-clip: padding-box;
+  }
 }
 
 .row {
