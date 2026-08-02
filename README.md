@@ -70,7 +70,15 @@ supabase db reset              # drop & re-apply migrations (DESTRUCTIVE)
 supabase studio                # opens http://localhost:54323
 ```
 
-## Deployment (single host)
+## Deployment
+
+### Coolify (easiest managed path)
+
+Two clicks in Coolify: one-click **Supabase** service + this repo as a
+**Docker Compose** / **Dockerfile** app. Step-by-step:
+[`deploy/coolify.md`](./deploy/coolify.md).
+
+### Single host (systemd / bare metal)
 
 Drop the repo on a Linux box (or your Mac) with **Node 20+**, **npm**, and
 **Docker** running, then it's a one-liner:

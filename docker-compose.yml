@@ -1,0 +1,32 @@
+# Coolify: New Resource → Docker Compose → point at this file.
+# Supabase is a separate Coolify one-click service (see deploy/coolify.md).
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "4000"
+    environment:
+      PORT: "4000"
+      NODE_ENV: production
+      CLIENT_ORIGIN: "*"
+      # Set these in the Coolify UI (Environment Variables):
+      # SUPABASE_URL
+      # SUPABASE_ANON_KEY
+      # SUPABASE_SERVICE_ROLE_KEY
+      # JWT_SECRET
+      # ADMIN_BOOTSTRAP_NAME
+      # ADMIN_BOOTSTRAP_PASSWORD
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
