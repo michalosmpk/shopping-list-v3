@@ -18,7 +18,7 @@ Two resources. About 10 minutes. Coolify handles HTTPS + restarts.
 
 1. **+ New** → **Application** → your Git repo
 2. Build pack: **Docker Compose** (or **Dockerfile**)
-   - Compose file: `docker-compose.yml` (repo root)
+   - Compose file: `/docker-compose.yaml` (Coolify’s default — leave as-is)
    - Or Dockerfile path: `/Dockerfile`
 3. Port: `4000`
 4. Domain: set your domain (HTTPS is automatic — needed for the PWA)
