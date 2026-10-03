@@ -36,6 +36,7 @@ import {
   ChevronLeft,
   DragIcon,
   PlusIcon,
+  PresetIcon,
   ShareIcon,
   TrashIcon,
 } from "./Icons";
@@ -45,6 +46,7 @@ import { useToast } from "./Toast";
 import { navigate } from "../router";
 import { useSync } from "../sync/SyncProvider";
 import { ShareConfigModal } from "./ShareConfigModal";
+import { PresetsModal } from "./PresetsModal";
 
 export type ListScreenMode = "user" | "guest";
 
@@ -60,6 +62,7 @@ export function ListScreen({
   const [name, setName] = useState("");
   const [qty, setQty] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
 
   const list = useLiveQuery(() => db.lists.get(listId), [listId], undefined);
   const { status } = useSync();
@@ -174,6 +177,17 @@ export function ListScreen({
             Clear ✓ ({checkedCount})
           </button>
         )}
+        {mode === "user" && (
+          <button
+            type="button"
+            className="iconbtn"
+            onClick={() => setPresetsOpen(true)}
+            aria-label="Presets"
+            title="Presets"
+          >
+            <PresetIcon />
+          </button>
+        )}
         {mode === "user" && list.isOwner !== false && (
           <button
             type="button"
@@ -187,6 +201,20 @@ export function ListScreen({
         )}
         <SyncChip />
       </header>
+
+      {presetsOpen && mode === "user" && (
+        <PresetsModal
+          listId={listId}
+          listName={list.name}
+          items={(items ?? []).map((item) => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            checked: item.checked,
+          }))}
+          onClose={() => setPresetsOpen(false)}
+        />
+      )}
 
       {shareOpen && mode === "user" && (
         <ShareConfigModal

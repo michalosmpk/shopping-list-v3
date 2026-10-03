@@ -12,6 +12,7 @@ import { authRouter } from "./routes/auth.js";
 import { syncRouter } from "./routes/sync.js";
 import { adminRouter } from "./routes/admin.js";
 import { shareRouter } from "./routes/share.js";
+import { presetsRouter } from "./routes/presets.js";
 import { pingSupabase } from "./lib/supabase.js";
 import { bootstrapAdminIfNeeded } from "./lib/users.js";
 
@@ -40,6 +41,7 @@ async function main() {
   app.use("/api/sync", syncRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/share", shareRouter);
+  app.use("/api/presets", presetsRouter);
 
   app.use("/api", (_req: Request, res: Response) => {
     res.status(404).json({ error: "not_found" });

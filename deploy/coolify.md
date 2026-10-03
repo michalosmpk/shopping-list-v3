@@ -22,7 +22,8 @@ Two resources. About 10 minutes. Coolify handles HTTPS + restarts.
    - Or Dockerfile path: `/Dockerfile`
 3. Port: `4000`
 4. Domain: set your domain (HTTPS is automatic — needed for the PWA)
-5. Environment variables:
+5. Environment variables (add these, then for **every** one uncheck
+   **Available at Buildtime** — they are runtime-only):
 
 ```
 SUPABASE_URL=<kong url from step 1 — prefer the internal http://… URL if Coolify shows one>
@@ -35,6 +36,9 @@ NODE_ENV=production
 ADMIN_BOOTSTRAP_NAME=admin
 ADMIN_BOOTSTRAP_PASSWORD=<strong password>
 ```
+
+   Leaving `NODE_ENV=production` available at buildtime makes the Docker
+   build skip Vite/TypeScript and fail with exit 127.
 
 6. Enable **Connect to Predefined Network** on the app (so it can reach Supabase)
 7. Deploy

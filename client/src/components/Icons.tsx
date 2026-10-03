@@ -63,6 +63,12 @@ export const CheckIcon = ({ size, className }: IconProps) => (
   </svg>
 );
 
+export const PresetIcon = ({ size, className }: IconProps) => (
+  <svg {...base(size)} className={className} aria-hidden>
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
 export const ShareIcon = ({ size, className }: IconProps) => (
   <svg {...base(size)} className={className} aria-hidden>
     <circle cx="18" cy="5" r="3" />

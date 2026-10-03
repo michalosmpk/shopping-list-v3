@@ -112,6 +112,22 @@ export type ListMember = {
   createdAt?: string;
 };
 
+export type PresetMember = {
+  id: string;
+  name: string;
+  displayName: string;
+};
+
+export type Preset = {
+  id: string;
+  name: string;
+  isOwner: boolean;
+  ownerName: string;
+  ownerDisplayName: string;
+  items: Array<{ name: string; quantity: string }>;
+  members: PresetMember[];
+};
+
 export type GuestAuthResponse = {
   token: string;
   list_id: string;
@@ -242,6 +258,34 @@ export const api = {
       { auth: false }
     );
   },
+  // --- presets --------------------------------------------------------
+  async listPresets() {
+    return request<{ presets: Preset[] }>("/presets");
+  },
+  async createPreset(input: {
+    name: string;
+    items: Array<{ name: string; quantity: string }>;
+  }) {
+    return request<{ preset: Preset }>("/presets", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  async deletePreset(id: string) {
+    return request<{ ok: true }>(`/presets/${id}`, { method: "DELETE" });
+  },
+  async addPresetMember(presetId: string, name: string) {
+    return request<{ member: PresetMember }>(`/presets/${presetId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+  async removePresetMember(presetId: string, userId: string) {
+    return request<{ ok: true }>(`/presets/${presetId}/members/${userId}`, {
+      method: "DELETE",
+    });
+  },
+
   async authShare(token: string, password: string) {
     return request<GuestAuthResponse>(`/share/auth/${token}`, {
       method: "POST",
